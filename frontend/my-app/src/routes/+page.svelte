@@ -1,177 +1,137 @@
-<script lang="ts">
+
+<script>
   import { z } from 'zod';
- import { onMount } from 'svelte';
- import { error, json } from '@sveltejs/kit';
- let form = {
- name: '',
- yourEmail: '',
- recipientEmail: '',
- date: ''
-  };
- let errors: Record<string, string[] | undefined> = {};
- let submitted = false;
- const schema = z.object({
- name: z.string().min(1, 'Name is required'),
- yourEmail: z.string().email('Invalid email address'),
- recipientEmail: z.string().email('Invalid recipient email'),
- date: z.string().min(1, 'Date is required')
+  import { superForm } from 'sveltekit-superforms/client';
+  import { zodClient } from 'sveltekit-superforms/adapters';
+
+  // Define the schema for form validation
+  const formSchema = z.object({
+    name: z.string().min(2, { message: "Name must be at least 2 characters" }),
+    yourEmail: z.string().email({ message: "Please enter a valid email address" }),
+    recipientEmail: z.string().email({ message: "Please enter a valid recipient email" }),
+    date: z.string().refine(val => !isNaN(Date.parse(val)), {
+      message: "Please enter a valid date",
+    }),
   });
- const validate = () => {
- const result = schema.safeParse(form);
- if (!result.success) {
- errors = result.error.formErrors.fieldErrors;
- return false;
-  } else {
- errors = {};
- return true;
+
+  // Use superForm to handle the form
+  const { form, errors, enhance, submitting } = superForm(
+    { name: '', yourEmail: '', recipientEmail: '', date: new Date().toISOString().slice(0, 10) },
+    { validators: zodClient(formSchema) }
+  );
+</script>
+
+<div class="form-container">
+  <h1>Email followup</h1>
+  
+  <form method="POST" use:enhance>
+    <div class="form-group">
+      <label for="name">Name</label>
+      <input 
+        type="text" 
+        id="name" 
+        bind:value={$form.name} 
+        class:error={$errors.name}
+      />
+      {#if $errors.name}<span class="error-message">{$errors.name}</span>{/if}
+    </div>
+    
+    <div class="form-group">
+      <label for="yourEmail">Your Email</label>
+      <input 
+        type="email" 
+        id="yourEmail" 
+        bind:value={$form.yourEmail} 
+        class:error={$errors.yourEmail}
+      />
+      {#if $errors.yourEmail}<span class="error-message">{$errors.yourEmail}</span>{/if}
+    </div>
+    
+    <div class="form-group">
+      <label for="recipientEmail">Recipient Email</label>
+      <input 
+        type="email" 
+        id="recipientEmail" 
+        bind:value={$form.recipientEmail} 
+        class:error={$errors.recipientEmail}
+      />
+      {#if $errors.recipientEmail}<span class="error-message">{$errors.recipientEmail}</span>{/if}
+    </div>
+    
+    <div class="form-group">
+      <label for="date">Date</label>
+      <input 
+        type="date" 
+        id="date" 
+        bind:value={$form.date} 
+        class:error={$errors.date}
+      />
+      {#if $errors.date}<span class="error-message">{$errors.date}</span>{/if}
+    </div>
+    
+    <button type="submit" disabled={$submitting}>
+      {$submitting ? 'Submitting...' : 'Submit'}
+    </button>
+  </form>
+</div>
+
+<style>
+  .form-container {
+    max-width: 500px;
+    margin: 0 auto;
+    padding: 20px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
   }
-  };
- const handleSubmit = async (e: Event) => {
- e.preventDefault();
- if (!validate()) {
- return false;
+
+  h1 {
+    text-align: center;
+    margin-bottom: 20px;
   }
- try {
- const reponse = await fetch("http://localhost:3000/data", {
- method: "POST",
- headers: {
- "Content-Type": "application/json"
-  },
- body: JSON.stringify(form)
-  });
- if (reponse.ok) {
- submitted = true;
-  } else {
- const errorMessage = await reponse.text();
- console.log("Form submission failed!!!", errorMessage);
+
+  .form-group {
+    margin-bottom: 15px;
   }
-  } catch (error) {
- console.log(error);
+
+  label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
   }
-  };
- </script>
- 
- <style>
-   form {
-     max-width: 500px;
-     margin: 40px auto;
-     padding: 24px;
-     background-color: white;
-     border-radius: 8px;
-     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-   }
- 
-   div {
-     margin-bottom: 20px;
-   }
- 
-   label {
-     display: block;
-     margin-bottom: 6px;
-     font-weight: 600;
-   }
- 
-   input {
-     width: 100%;
-     padding: 10px 12px;
-     border: 1px solid #ccc;
-     border-radius: 4px;
-     font-size: 16px;
-     margin-top: 5px;
-   }
- 
-   input:focus {
-     outline: none;
-     border-color: #4a90e2;
-     box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
-   }
- 
-   span {
-     display: block;
-     color: #e53e3e;
-     font-size: 14px;
-     margin-top: 5px;
-   }
- 
-   
-   button {
-     width: 100%;
-     background-color: #3b82f6;
-     color: white;
-     border: none;
-     border-radius: 4px;
-     padding: 12px;
-     font-size: 16px;
-     font-weight: 500;
-     cursor: pointer;
-     transition: background-color 0.2s;
-   }
- 
-   button:hover {
-     background-color: #2563eb;
-   }
- 
-   p {
-     color: #10b981;
-     text-align: center;
-     margin-top: 16px;
-     font-weight: 500;
-   }
- </style>
- 
- <form on:submit|preventDefault={handleSubmit} novalidate>
- <div>
- <label>
-  Name:
- <input
- type="text"
- bind:value={form.name}
- />
- </label>
-  {#if errors.name}
- <span>{errors.name}</span>
-  {/if}
- </div>
- <div>
- <label>
-  Your Email:
- <input
- type="email"
- bind:value={form.yourEmail}
- />
- </label>
-  {#if errors.yourEmail}
- <span>{errors.yourEmail}</span>
-  {/if}
- </div>
- <div>
- <label>
-  Recipient's Email:
- <input
- type="email"
- bind:value={form.recipientEmail}
- />
- </label>
-  {#if errors.recipientEmail}
- <span>{errors.recipientEmail}</span>
-  {/if}
- </div>
- <div>
- <label>
-  Calendar:
- <input
- type="date"
- bind:value={form.date}
- />
- </label>
-  {#if errors.date}
- <span>{errors.date}</span>
-  {/if}
- </div>
- <button type="submit">
-  Submit
- </button>
- </form>
- {#if submitted}
- <p>Form submitted successfully!</p>
- {/if}
+
+  input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 16px;
+  }
+
+  input.error {
+    border-color: #ff3e3e;
+  }
+
+  .error-message {
+    color: #ff3e3e;
+    font-size: 14px;
+    margin-top: 5px;
+    display: block;
+  }
+
+  button {
+    background-color: #4caf50;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    font-size: 16px;
+    cursor: pointer;
+    border-radius: 4px;
+    width: 100%;
+    margin-top: 10px;
+  }
+
+  button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+  }
+</style>
